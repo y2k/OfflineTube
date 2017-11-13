@@ -1,0 +1,21 @@
+apply plugin: 'kotlin'
+
+repositories {
+    maven { url 'https://maven.google.com' }
+    maven { url 'https://jitpack.io' }
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+
+    compileOnly 'com.google.android:android:4.1.1.4'
+    compileOnly 'com.github.y2k:duktape-android-jar:eade7b3673'
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.6"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.6"
+}
