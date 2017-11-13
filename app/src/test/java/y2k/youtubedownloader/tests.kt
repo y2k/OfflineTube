@@ -37,7 +37,7 @@ class YoutubeUtilsTests {
     }
 }
 
-class `Integration tests` {
+class IntegrationTests {
 
     @Test
     fun `extract url from link is correct`() {

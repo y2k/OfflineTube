@@ -4,6 +4,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import y2k.youtubedownloader.ShareActivity.App
 import y2k.youtubedownloader.youtube.*
 
 /**
@@ -42,6 +43,12 @@ object Domain {
 }
 
 object Downloader {
+
+    suspend fun getAvailableVideos(intent: Intent): Result<List<FmtStreamMap>, Errors> =
+        TODO()
+
+    suspend fun startDownload(intent: Intent): Result<Long, Errors> =
+        startDownload(App.instance, intent)
 
     suspend fun startDownload(context: Context, intent: Intent): Result<Long, Errors> =
         Domain.createYoutubePageRequest(intent)

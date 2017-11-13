@@ -29,9 +29,8 @@ object Http {
                     }
                 }
 
-                override fun onPostExecute(result: String?) {
+                override fun onPostExecute(result: String?) =
                     continuation.resume(result.toResult(CommonError))
-                }
             }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR)
         }
     }
@@ -80,5 +79,6 @@ object CommonError : Errors()
 object CantFindLink : Errors()
 
 inline fun log(msgFactory: () -> String) {
-    Log.i("YoutubeDownloader", msgFactory())
+    if (BuildConfig.DEBUG)
+        Log.i("YoutubeDownloader", msgFactory())
 }
