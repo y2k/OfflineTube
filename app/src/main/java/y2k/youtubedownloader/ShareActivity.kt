@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
+import com.facebook.litho.ComponentLayout
 import com.facebook.soloader.SoLoader
 import com.facebook.yoga.YogaAlign
 import com.facebook.yoga.YogaEdge
@@ -32,7 +33,22 @@ class ShareScreen(private val intent: Intent) : ElmFunctions<Model, Msg> {
     }
 
     override fun view(model: Model) =
-        viewLoading()
+        if (model.formats.isEmpty()) viewLoading() else viewFormats(model)
+
+    private fun viewFormats(model: Model) =
+        column {
+            model.formats
+                .map { viewItem(it) }
+                .toTypedArray()
+                .let(this::children)
+        }
+
+    private fun viewItem(item: FmtStreamMap): Contextual<ComponentLayout.Builder> =
+        column {
+            text {
+                text(item.quality)
+            }
+        }
 
     private fun viewLoading() = column {
         alignItems(YogaAlign.CENTER)

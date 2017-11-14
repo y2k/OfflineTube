@@ -23,9 +23,12 @@ object Domain {
             .map(Youtube::createPageRequest)
 
     fun findVideoInHtml(html: String): Result<FmtStreamMap, Errors> =
+        findAllVideos(html)
+            .bind(this::findBestVideoFormat)
+
+    fun findAllVideos(html: String) =
         html.let(Youtube::parse)
             .toResult(CommonError)
-            .bind(this::findBestVideoFormat)
 
     private fun findBestVideoFormat(formats: List<FmtStreamMap>): Result<FmtStreamMap, Errors> =
         formats
@@ -45,7 +48,9 @@ object Domain {
 object Downloader {
 
     suspend fun getAvailableVideos(intent: Intent): Result<List<FmtStreamMap>, Errors> =
-        TODO()
+        Domain.createYoutubePageRequest(intent)
+            .bind { Http.downloadHtml(it) }
+            .bind(Domain::findAllVideos)
 
     suspend fun startDownload(intent: Intent): Result<Long, Errors> =
         startDownload(App.instance, intent)
