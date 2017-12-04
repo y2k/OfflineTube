@@ -15,25 +15,17 @@ class DownloadTask(val url: String, val title: String?)
 
 object Domain {
 
-    fun createYoutubePageRequest(intent: Intent): Result<HttpRequest, Errors> =
-        intent
-            .getStringExtra(Intent.EXTRA_TEXT)
-            .toResult(CommonError)
-            .mapOption(YoutubeUtils::extractVideoId, CantFindLink)
-            .map(Youtube::createPageRequest)
+    fun createYoutubePageRequest(intent: Intent): HttpRequest? =
+        intent.getStringExtra(Intent.EXTRA_TEXT)
+            .mapNull(YoutubeUtils::extractVideoId)
+            .mapNull(Youtube::createPageRequest)
 
-    fun findVideoInHtml(html: String): Result<FmtStreamMap, Errors> =
-        findAllVideos(html)
-            .bind(this::findBestVideoFormat)
-
-    fun findAllVideos(html: String) =
+    fun findVideoInHtml(html: String): FmtStreamMap? =
         html.let(Youtube::parse)
-            .toResult(CommonError)
+            .mapNull(::findBestVideoFormat)
 
-    private fun findBestVideoFormat(formats: List<FmtStreamMap>): Result<FmtStreamMap, Errors> =
-        formats
-            .firstOrNull { it.type?.startsWith("video/mp4") ?: false && it.quality == "medium" }
-            .toResult(CantFindLink)
+    private fun findBestVideoFormat(formats: List<FmtStreamMap>): FmtStreamMap? =
+        formats.firstOrNull { it.type?.startsWith("video/mp4") ?: false && it.quality == "medium" }
 
     fun makeDownloadRequest(task: DownloadTask): DownloadManager.Request =
         task.url
@@ -47,35 +39,35 @@ object Domain {
 
 object Downloader {
 
-    suspend fun getAvailableVideos(intent: Intent): Result<List<FmtStreamMap>, Errors> =
-        Domain.createYoutubePageRequest(intent)
-            .bind { Http.downloadHtml(it) }
-            .bind(Domain::findAllVideos)
+    suspend fun getAvailableVideos(intent: Intent): List<FmtStreamMap> =
+        Domain.createYoutubePageRequest(intent)!!
+            .let { Http.downloadHtml(it) }
+            .let(Youtube::parse)!!
 
-    suspend fun startDownload(intent: Intent): Result<Long, Errors> =
+    @Suppress("unused")
+    suspend fun startDownload(intent: Intent): Long =
         startDownload(App.instance, intent)
 
-    suspend fun startDownload(context: Context, intent: Intent): Result<Long, Errors> =
-        Domain.createYoutubePageRequest(intent)
-            .bind { Http.downloadHtml(it) }
-            .bind(Domain::findVideoInHtml)
-            .bind { Downloader.tryExtractDownloadUrl(it) }
-            .map(Domain::makeDownloadRequest)
-            .map(context::enqueueDownload)
+    private suspend fun startDownload(context: Context, intent: Intent): Long =
+        Domain.createYoutubePageRequest(intent)!!
+            .let { Http.downloadHtml(it) }
+            .let(Domain::findVideoInHtml)!!
+            .let { Downloader.tryExtractDownloadUrl(it) }
+            .let(Domain::makeDownloadRequest)
+            .let(context::enqueueDownload)
 
-    private suspend fun tryExtractDownloadUrl(fmt: FmtStreamMap): Result<DownloadTask, Errors> =
+    private suspend fun tryExtractDownloadUrl(fmt: FmtStreamMap): DownloadTask =
         Youtube.tryExtractDownloadUrl(fmt)
             .let { specifyDownloadUrl(it, fmt) }
-            .map { DownloadTask(it, fmt.title) }
+            .let { DownloadTask(it, fmt.title) }
 
-    private suspend fun specifyDownloadUrl(parse: UrlParse, fmt: FmtStreamMap): Result<String, Errors> =
+    private suspend fun specifyDownloadUrl(parse: UrlParse, fmt: FmtStreamMap): String =
         when (parse) {
-            is CompleteUrlParse -> Ok(parse.downloadUrl)
-            is IncompleteUrlParse -> {
+            is CompleteUrlParse ->
+                parse.downloadUrl
+            is IncompleteUrlParse ->
                 parse.request
-                    .toResult(CommonError)
-                    .bind { Http.downloadHtml(it) }
-                    .mapOption({ Youtube.decipher(it, fmt) }, CommonError)
-            }
+                    .let { Http.downloadHtml(it) }
+                    .let { Youtube.decipher(it, fmt) }!!
         }
 }

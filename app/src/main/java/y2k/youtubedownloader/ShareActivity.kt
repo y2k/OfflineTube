@@ -4,12 +4,16 @@ import android.app.Activity
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
-import com.facebook.litho.ComponentLayout
+import com.facebook.litho.ComponentLayout.ContainerBuilder
 import com.facebook.soloader.SoLoader
 import com.facebook.yoga.YogaAlign
 import com.facebook.yoga.YogaEdge
 import com.facebook.yoga.YogaJustify
-import y2k.litho.elmish.*
+import kotlinx.types.Result
+import kotlinx.types.Result.Error
+import kotlinx.types.Result.Ok
+import y2k.litho.elmish.experimental.*
+import y2k.litho.elmish.experimental.Views.column
 import y2k.youtubedownloader.ShareScreen.Model
 import y2k.youtubedownloader.ShareScreen.Msg
 import y2k.youtubedownloader.ShareScreen.Msg.VideosMsg
@@ -17,57 +21,61 @@ import y2k.youtubedownloader.youtube.FmtStreamMap
 import y2k.youtubedownloader.Downloader as D
 
 class ShareScreen(private val intent: Intent) : ElmFunctions<Model, Msg> {
-    data class Model(val formats: List<FmtStreamMap>)
+
+    data class Model(val formats: List<FmtStreamMap> = emptyList())
     sealed class Msg {
-        class VideosMsg(val result: Result<List<FmtStreamMap>, Errors>) : Msg()
+        class VideosMsg(val result: Result<List<FmtStreamMap>, Exception>) : Msg()
     }
 
     override fun init(): Pair<Model, Cmd<Msg>> =
-        Model(emptyList()) to Cmd.fromSuspend({ D.getAvailableVideos(intent) }, ::VideosMsg)
+        Model() to Cmd.fromContext({ D.getAvailableVideos(intent) }, ::VideosMsg)
 
     override fun update(model: Model, msg: Msg): Pair<Model, Cmd<Msg>> = when (msg) {
-        is VideosMsg -> when (msg.result) {
-            is Ok -> model.copy(formats = msg.result.value) to Cmd.none()
-            is Error -> model to Cmd.none()
+        is VideosMsg -> {
+            when (msg.result) {
+                is Ok -> model.copy(formats = msg.result.value) to Cmd.none()
+                is Error -> Log.log(msg.result.error, model) to Cmd.none()
+            }
         }
     }
 
-    override fun view(model: Model) =
-        if (model.formats.isEmpty()) viewLoading() else viewFormats(model)
+    override fun ContainerBuilder.view(model: Model) =
+        if (model.formats.isEmpty())
+            viewLoading()
+        else viewFormats(model)
 
-    private fun viewFormats(model: Model) =
+    private fun ContainerBuilder.viewFormats(model: Model) =
         column {
             model.formats
-                .map { viewItem(it) }
-                .toTypedArray()
-                .let(this::children)
+                .map(::viewItem)
+                .forEach(::layoutChild)
         }
 
-    private fun viewItem(item: FmtStreamMap): Contextual<ComponentLayout.Builder> =
+    private fun viewItem(item: FmtStreamMap) =
         column {
             text {
                 text(item.quality)
             }
         }
 
-    private fun viewLoading() = column {
-        alignItems(YogaAlign.CENTER)
-        justifyContent(YogaJustify.CENTER)
-        children(
-            progressL { layout ->
+    private fun ContainerBuilder.viewLoading() =
+        column {
+            alignItems(YogaAlign.CENTER)
+            justifyContent(YogaJustify.CENTER)
+
+            progress {
                 colorRes(R.color.colorAccent)
-                layout {
-                    widthDip(50)
-                    heightDip(50)
-                    marginDip(YogaEdge.BOTTOM, 20)
-                }
-            },
+                widthDip(50f)
+                heightDip(50f)
+                marginDip(YogaEdge.BOTTOM, 20f)
+            }
+
             text {
-                text("Find youtube URL...")
                 textSizeSp(24f)
                 textColorRes(R.color.colorAccent)
-            })
-    }
+                text("Find youtube URL...")
+            }
+        }
 }
 
 class ShareActivity : Activity() {
